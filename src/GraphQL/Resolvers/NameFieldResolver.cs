@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Reflection;
 using GraphQL.Types;
 
@@ -57,8 +58,10 @@ namespace GraphQL.Resolvers
         private static Func<object, object> DelegateHelper<TTarget, TReturn>(PropertyInfo property)
         {
             // Convert the slow MethodInfo into a fast, strongly typed, open delegate
-            Func<TTarget, TReturn> func = (Func<TTarget, TReturn>)
-                Delegate.CreateDelegate(typeof(Func<TTarget, TReturn>), property.GetMethod);
+            var targetParameter = Expression.Parameter(typeof(TTarget));
+            var targetProperty = Expression.Property(targetParameter, property);
+            var lambda = Expression.Lambda<Func<TTarget, TReturn>>(targetProperty, targetParameter);
+            var func = lambda.Compile();
 
             // Now create a more weakly typed delegate which will call the strongly typed one
             return (object target) => func((TTarget)target);
